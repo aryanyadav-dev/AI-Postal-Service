@@ -1,8 +1,8 @@
-# Delivery System Application Description
+# AI Post Office Identification System
 
 ## Overview
 
-The Delivery System Application is designed to automate the processing of delivery requests based on address images. It leverages Optical Character Recognition (OCR) and Natural Language Processing (NLP) to extract and interpret address information, predict PIN codes, calculate carbon footprints, and integrate with external services for notifications and feedback. Also designed a Landing page for a website for scanning purposes and other additional information using HTML,CSS and GSAP.
+The AI Post Office Identification System is designed to automate the processing of delivery requests based on address images. It leverages Optical Character Recognition (OCR) and Natural Language Processing (NLP) to extract and interpret address information, predict PIN codes, calculate carbon footprints, and integrate with external services for notifications and feedback. Also designed a Landing page for a website for scanning purposes and other additional information using HTML,CSS and GSAP.
 
 ## Key Components
 
