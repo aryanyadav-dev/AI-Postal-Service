@@ -4,7 +4,6 @@ import pytesseract
 import spacy
 import numpy as np
 import pandas as pd
-from flask import Flask, request, jsonify
 import logging
 import geopy.distance
 from googletrans import Translator
@@ -15,16 +14,17 @@ import sqlite3
 import requests
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
-
-app = Flask(__name__)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize models and services
 nlp = spacy.load("en_core_web_sm")
 translator = Translator()
 
+# Twilio setup
 account_sid = os.getenv('TWILIO_ACCOUNT_SID')
 auth_token = os.getenv('TWILIO_AUTH_TOKEN')
 twilio_phone_number = os.getenv('TWILIO_PHONE_NUMBER')
@@ -35,10 +35,13 @@ if not account_sid or not auth_token or not twilio_phone_number:
 
 twilio_client = Client(account_sid, auth_token)
 
+# OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# Google Maps API key
 google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
 
+# Database setup
 DATABASE = 'delivery_system.db'
 
 def init_db():
@@ -56,8 +59,30 @@ def init_db():
             status TEXT
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            password TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
+
+def save_user(username, password):
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, password))
+    conn.commit()
+    conn.close()
+
+def verify_user(username, password):
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password))
+    user = cursor.fetchone()
+    conn.close()
+    return user
 
 def save_delivery(customer_name, phone_number, address, pin_code, tracking_link, carbon_footprint, status):
     conn = sqlite3.connect(DATABASE)
@@ -89,23 +114,13 @@ def get_google_maps_route(origin, destination):
     else:
         return {'error': 'Unable to fetch route'}
 
-@app.route('/process-address', methods=['POST'])
-def process_address():
+def process_address(image_file):
     try:
-        if 'image' not in request.files:
-            logger.error("No image file part in the request")
-            return jsonify({'error': 'No image file part in the request'}), 400
-        
-        image_file = request.files['image']
-        if image_file.filename == '':
-            logger.error("No image selected for uploading")
-            return jsonify({'error': 'No image selected for uploading'}), 400
-
         image = cv2.imdecode(np.frombuffer(image_file.read(), np.uint8), cv2.IMREAD_UNCHANGED)
 
         if image is None:
             logger.error("Could not decode image")
-            return jsonify({'error': 'Could not decode image'}), 400
+            return {'error': 'Could not decode image'}
 
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
@@ -126,23 +141,23 @@ def process_address():
             'state': [address_entities.get('GPE', 'Unknown State')]
         })
 
-        predicted_pin = '400001'  
+        predicted_pin = '400001'  # For demo purposes
 
         logger.info(f"Predicted PIN code: {predicted_pin}")
 
-        origin = '19.0760,72.8777'  
-        destination = address_entities.get('GPE', 'Unknown Location')  
+        origin = '19.0760,72.8777'  # Example origin location
+        destination = address_entities.get('GPE', 'Unknown Location')  # Replace with extracted address
         route_info = get_google_maps_route(origin, destination)
         if 'error' in route_info:
-            return jsonify({'error': route_info['error']}), 500
+            return {'error': route_info['error']}
 
         distance = route_info['distance']
         carbon_footprint = calculate_carbon_footprint(float(distance.split()[0]))
         logger.info(f"Estimated distance: {distance}, Carbon footprint: {carbon_footprint}g CO2")
 
         customer_name = address_entities.get('PERSON', 'Unknown Customer')
-        phone_number = '+91xxxxxxxxxx' 
-        tracking_link = f"http://tracking_service/{predicted_pin}"  
+        phone_number = '+91xxxxxxxxxx'  # Placeholder for demo purposes
+        tracking_link = f"http://tracking_service/{predicted_pin}"  # Placeholder tracking link
         status = 'In Progress'
         save_delivery(customer_name, phone_number, translated_text, predicted_pin, tracking_link, carbon_footprint, status)
         logger.info("Delivery information saved to database")
@@ -178,7 +193,7 @@ def process_address():
         pywhatkit.sendwhatmsg_instantly(phone_number, feedback_message_body, wait_time=20)
         logger.info("Feedback request sent via WhatsApp")
 
-        return jsonify({
+        return {
             'extracted_text': translated_text,
             'address_entities': address_entities,
             'predicted_pin_code': predicted_pin,
@@ -189,12 +204,36 @@ def process_address():
             'whatsapp_status': 'sent',
             'feedback_request': feedback_request,
             'route_info': route_info
-        })
-
+        }
     except Exception as e:
         logger.error(f"An error occurred: {e}")
-        return jsonify({'error': 'An error occurred while processing the request'}), 500
+        return {'error': 'An error occurred while processing the request'}
 
-if __name__ == '__main__':
-    init_db()
-    app.run(debug=True)
+def get_nearest_post_office_route(origin, post_office_type):
+    try:
+        post_office_locations = {
+            'BPO': 'location_of_bpo',  # Replace with actual location
+            'SPO': 'location_of_spo',  # Replace with actual location
+            'HPO': 'location_of_hpo',  # Replace with actual location
+            'GPO': 'location_of_gpo'   # Replace with actual location
+        }
+
+        destination = post_office_locations.get(post_office_type)
+        if not destination:
+            return {'error': 'Invalid post office type'}
+
+        route_info = get_google_maps_route(origin, destination)
+        if 'error' in route_info:
+            return {'error': route_info['error']}
+
+        return {
+            'distance': route_info['distance'],
+            'duration': route_info['duration'],
+            'steps': route_info['steps']
+        }
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        return {'error': 'An error occurred while fetching post office route'}
+
+# Initialize database
+init_db()
