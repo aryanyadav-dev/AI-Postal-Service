@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ease Accessibility</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .accessibility-section {
+            background-color: rgb(247, 246, 228);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px black;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+        .icon-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .high-contrast {
+            background-color: #000;
+            color: #fff;
+        }
+        .high-contrast .accessibility-section {
+            background-color: #333;
+            box-shadow: 0 0 10px snow;
+            color: #fff;
+        }
+        .high-contrast .accessibility-section h5 {
+            color: #ffd700; /* Gold color for visibility */
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="text-center mb-4">Accessibility Options</h2>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="accessibility-section">
+                    <div class="icon-container">
+                        <span class="icon">&#128101;</span> <!-- Icon for Assistive Features -->
+                        <h5>Assistive Features</h5>
+                    </div>
+                    <p>Enhance your experience with features designed for users with disabilities.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="accessibility-section">
+                    <div class="icon-container">
+                        <span class="icon">&#128279;</span> <!-- Icon for Screen Reader -->
+                        <h5>Screen Reader Support</h5>
+                    </div>
+                    <p>Utilize our site with screen readers for improved navigation.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="accessibility-section">
+                    <div class="icon-container">
+                        <span class="icon">&#128269;</span> <!-- Icon for High Contrast Mode -->
+                        <h5>High Contrast Mode</h5>
+                        <button class="btn btn-outline-secondary mt-2" id="contrastToggle">Toggle High Contrast</button>
+                    </div>
+                    <p>Activate high contrast mode for better visibility and readability.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <button class="btn btn-primary" data-toggle="modal" data-target="#feedbackModal">Give Feedback</button>
+            <button class="btn btn-secondary ml-2" id="increaseTextSize">Increase Text Size A+</button>
+            <button class="btn btn-secondary ml-2" id="decreaseTextSize">Decrease Text Size A-</button>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div class="modal fade" id="feedbackModal" tabindex="-1" role="dialog" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="feedbackModalLabel">Accessibility Feedback</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="form-group">
+                            <label for="feedback">Your Feedback</label>
+                            <textarea class="form-control" id="feedback" rows="3" placeholder="Share your thoughts..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        // Toggle high contrast mode
+        document.getElementById('contrastToggle').addEventListener('click', function () {
+            document.body.classList.toggle('high-contrast');
+        });
+
+        // Increase text size
+        document.getElementById('increaseTextSize').addEventListener('click', function () {
+            const body = document.body;
+            const currentSize = window.getComputedStyle(body, null).getPropertyValue('font-size');
+            const newSize = parseFloat(currentSize) + 2; // Increase by 2px
+            body.style.fontSize = newSize + 'px';
+        });
+
+        // Decrease text size
+        document.getElementById('decreaseTextSize').addEventListener('click', function () {
+            const body = document.body;
+            const currentSize = window.getComputedStyle(body, null).getPropertyValue('font-size');
+            const newSize = Math.max(10, parseFloat(currentSize) - 2); // Decrease by 2px, minimum size 10px
+            body.style.fontSize = newSize + 'px';
+        });
+    </script>
+</body>
+</html>

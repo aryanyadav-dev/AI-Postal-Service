@@ -1,0 +1,20 @@
+{
+    "name": "delivery-system-backend",
+    "version": "1.0.0",
+    "description": "Backend for the delivery system",
+    "main": "app.js",
+    "scripts": {
+        "start": "node app.js"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^10.0.0",
+        "express": "^4.17.1",
+        "express-fileupload": "^1.2.1",
+        "googleapis": "^120.0.0",
+        "node-fetch": "^3.3.0",
+        "openai": "^4.3.0",
+        "sqlite3": "^5.0.0",
+        "twilio": "^5.3.0"
+    }
+}

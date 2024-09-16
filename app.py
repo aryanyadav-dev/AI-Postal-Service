@@ -6,11 +6,12 @@ import numpy as np
 import pandas as pd
 import logging
 import requests
+import sqlite3
+import geopy.distance  
 from googletrans import Translator
 from twilio.rest import Client
 import pywhatkit
 import openai
-import sqlite3
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -42,6 +43,36 @@ google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
 
 # API endpoints for Node.js backend
 BACKEND_URL = 'http://localhost:3000'  # Adjust to your Node.js backend URL
+
+def init_db():
+    db_path = 'delivery_system.db'
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS deliveries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_name TEXT,
+        phone_number TEXT,
+        address TEXT,
+        pin_code INTEGER,
+        tracking_link TEXT,
+        carbon_footprint_g REAL,
+        status TEXT
+    )
+    ''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT,
+        password TEXT
+    )
+    ''')
+
+    conn.commit()
+    conn.close()
+    logger.info("Database initialized successfully")
 
 def save_user_to_backend(username, password):
     response = requests.post(f'{BACKEND_URL}/user/register', json={'username': username, 'password': password})
@@ -203,6 +234,10 @@ def get_nearest_post_office_route(origin, post_office_type):
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         return {'error': 'An error occurred while fetching post office route'}
+
+def calculate_carbon_footprint(distance):
+    # Placeholder function to calculate carbon footprint
+    return distance * 0.5  # Example conversion factor
 
 # Initialize database
 init_db()
