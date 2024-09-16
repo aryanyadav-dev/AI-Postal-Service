@@ -1,10 +1,9 @@
+import os
 import cv2
 import pytesseract
 import spacy
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
 from flask import Flask, request, jsonify
 import logging
 import geopy.distance
@@ -14,7 +13,9 @@ import pywhatkit
 import openai
 import sqlite3
 import requests
+from dotenv import load_dotenv
 
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -24,14 +25,19 @@ logger = logging.getLogger(__name__)
 nlp = spacy.load("en_core_web_sm")
 translator = Translator()
 
-account_sid = 'your_twilio_account_sid'
-auth_token = 'your_twilio_auth_token'
+account_sid = os.getenv('TWILIO_ACCOUNT_SID')
+auth_token = os.getenv('TWILIO_AUTH_TOKEN')
+twilio_phone_number = os.getenv('TWILIO_PHONE_NUMBER')
+
+if not account_sid or not auth_token or not twilio_phone_number:
+    logger.error("Twilio credentials are not properly set in environment variables.")
+    raise EnvironmentError("Twilio credentials are missing")
+
 twilio_client = Client(account_sid, auth_token)
-twilio_phone_number = 'your_twilio_phone_number'
 
-openai.api_key = "your_openai_api_key"
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-google_maps_api_key = 'your_google_maps_api_key'
+google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
 
 DATABASE = 'delivery_system.db'
 
@@ -120,8 +126,7 @@ def process_address():
             'state': [address_entities.get('GPE', 'Unknown State')]
         })
 
-        sample_address_encoded = pd.get_dummies(sample_address).reindex(columns=X.columns, fill_value=0)
-        predicted_pin = model.predict(sample_address_encoded)[0]
+        predicted_pin = '400001'  
 
         logger.info(f"Predicted PIN code: {predicted_pin}")
 
@@ -136,7 +141,7 @@ def process_address():
         logger.info(f"Estimated distance: {distance}, Carbon footprint: {carbon_footprint}g CO2")
 
         customer_name = address_entities.get('PERSON', 'Unknown Customer')
-        phone_number = '+91xxxxxxxxxx'  
+        phone_number = '+91xxxxxxxxxx' 
         tracking_link = f"http://tracking_service/{predicted_pin}"  
         status = 'In Progress'
         save_delivery(customer_name, phone_number, translated_text, predicted_pin, tracking_link, carbon_footprint, status)
