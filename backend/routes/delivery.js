@@ -2,13 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { processAddress, getNearestPostOfficeRoute } = require('../services/deliveryService');
 
-// Route to process delivery from the address image
 router.post('/process-address', async (req, res) => {
     try {
         if (!req.files || !req.files.image) {
             return res.status(400).json({ error: 'No image file provided' });
         }
-        const imageFile = req.files.image.data; // Get image data from file
+        const imageFile = req.files.image.data; 
         const result = await processAddress(imageFile);
         res.json(result);
     } catch (error) {
@@ -17,7 +16,6 @@ router.post('/process-address', async (req, res) => {
     }
 });
 
-// Route to get nearest post office routing
 router.get('/nearest-post-office', async (req, res) => {
     try {
         const { origin, postOfficeType } = req.query;

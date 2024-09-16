@@ -14,17 +14,14 @@ import pywhatkit
 import openai
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize models and services
 nlp = spacy.load("en_core_web_sm")
 translator = Translator()
 
-# Twilio setup
 account_sid = os.getenv('TWILIO_ACCOUNT_SID')
 auth_token = os.getenv('TWILIO_AUTH_TOKEN')
 twilio_phone_number = os.getenv('TWILIO_PHONE_NUMBER')
@@ -35,14 +32,11 @@ if not account_sid or not auth_token or not twilio_phone_number:
 
 twilio_client = Client(account_sid, auth_token)
 
-# OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Google Maps API key
 google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
 
-# API endpoints for Node.js backend
-BACKEND_URL = 'http://localhost:3000'  # Adjust to your Node.js backend URL
+BACKEND_URL = 'http://localhost:5000'  
 
 def init_db():
     db_path = 'delivery_system.db'
@@ -130,12 +124,11 @@ def process_address(image_file):
             'state': [address_entities.get('GPE', 'Unknown State')]
         })
 
-        predicted_pin = '400001'  # For demo purposes
-
+        predicted_pin = '400001'  
         logger.info(f"Predicted PIN code: {predicted_pin}")
 
-        origin = '19.0760,72.8777'  # Example origin location
-        destination = address_entities.get('GPE', 'Unknown Location')  # Replace with extracted address
+        origin = '19.0760,72.8777' 
+        destination = address_entities.get('GPE', 'Unknown Location')  
         route_info = get_google_maps_route(origin, destination)
         if 'error' in route_info:
             return {'error': route_info['error']}
@@ -145,11 +138,10 @@ def process_address(image_file):
         logger.info(f"Estimated distance: {distance}, Carbon footprint: {carbon_footprint}g CO2")
 
         customer_name = address_entities.get('PERSON', 'Unknown Customer')
-        phone_number = '+91xxxxxxxxxx'  # Placeholder for demo purposes
-        tracking_link = f"http://tracking_service/{predicted_pin}"  # Placeholder tracking link
+        phone_number = '+91xxxxxxxxxx'  
+        tracking_link = f"http://tracking_service/{predicted_pin}"  
         status = 'In Progress'
         
-        # Save delivery information to Node.js backend
         delivery_data = {
             'customer_name': customer_name,
             'phone_number': phone_number,
@@ -212,10 +204,10 @@ def process_address(image_file):
 def get_nearest_post_office_route(origin, post_office_type):
     try:
         post_office_locations = {
-            'BPO': 'location_of_bpo',  # Replace with actual location
-            'SPO': 'location_of_spo',  # Replace with actual location
-            'HPO': 'location_of_hpo',  # Replace with actual location
-            'GPO': 'location_of_gpo'   # Replace with actual location
+            'BPO': 'location_of_bpo',  
+            'SPO': 'location_of_spo',  
+            'HPO': 'location_of_hpo',  
+            'GPO': 'location_of_gpo'   
         }
 
         destination = post_office_locations.get(post_office_type)
@@ -236,8 +228,6 @@ def get_nearest_post_office_route(origin, post_office_type):
         return {'error': 'An error occurred while fetching post office route'}
 
 def calculate_carbon_footprint(distance):
-    # Placeholder function to calculate carbon footprint
-    return distance * 0.5  # Example conversion factor
+    return distance * 0.5  
 
-# Initialize database
 init_db()

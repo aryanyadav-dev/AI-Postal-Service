@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { saveUser, verifyUser } = require('../services/userService');
 
-// Route for user login
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -21,7 +20,6 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// Route to register a new user
 router.post('/register', async (req, res) => {
     const { username, password } = req.body;
     try {
