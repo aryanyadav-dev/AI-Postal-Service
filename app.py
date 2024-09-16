@@ -5,13 +5,12 @@ import spacy
 import numpy as np
 import pandas as pd
 import logging
-import geopy.distance
+import requests
 from googletrans import Translator
 from twilio.rest import Client
 import pywhatkit
 import openai
 import sqlite3
-import requests
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -41,61 +40,20 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 # Google Maps API key
 google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
 
-# Database setup
-DATABASE = 'delivery_system.db'
+# API endpoints for Node.js backend
+BACKEND_URL = 'http://localhost:3000'  # Adjust to your Node.js backend URL
 
-def init_db():
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS deliveries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_name TEXT,
-            phone_number TEXT,
-            address TEXT,
-            pin_code INTEGER,
-            tracking_link TEXT,
-            carbon_footprint_g REAL,
-            status TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT,
-            password TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+def save_user_to_backend(username, password):
+    response = requests.post(f'{BACKEND_URL}/user/register', json={'username': username, 'password': password})
+    return response.json()
 
-def save_user(username, password):
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
-    cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, password))
-    conn.commit()
-    conn.close()
+def verify_user_from_backend(username, password):
+    response = requests.post(f'{BACKEND_URL}/user/login', json={'username': username, 'password': password})
+    return response.json()
 
-def verify_user(username, password):
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password))
-    user = cursor.fetchone()
-    conn.close()
-    return user
-
-def save_delivery(customer_name, phone_number, address, pin_code, tracking_link, carbon_footprint, status):
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO deliveries (customer_name, phone_number, address, pin_code, tracking_link, carbon_footprint_g, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (customer_name, phone_number, address, pin_code, tracking_link, carbon_footprint, status))
-    conn.commit()
-    conn.close()
-
-def calculate_carbon_footprint(distance_km):
-    return distance_km * 150  # Assuming 150g CO2/km for delivery vehicles
+def save_delivery_to_backend(data):
+    response = requests.post(f'{BACKEND_URL}/delivery/save', json=data)
+    return response.json()
 
 def get_google_maps_route(origin, destination):
     url = f"https://maps.googleapis.com/maps/api/directions/json?origin={origin}&destination={destination}&key={google_maps_api_key}&traffic_model=best_guess"
@@ -159,8 +117,19 @@ def process_address(image_file):
         phone_number = '+91xxxxxxxxxx'  # Placeholder for demo purposes
         tracking_link = f"http://tracking_service/{predicted_pin}"  # Placeholder tracking link
         status = 'In Progress'
-        save_delivery(customer_name, phone_number, translated_text, predicted_pin, tracking_link, carbon_footprint, status)
-        logger.info("Delivery information saved to database")
+        
+        # Save delivery information to Node.js backend
+        delivery_data = {
+            'customer_name': customer_name,
+            'phone_number': phone_number,
+            'address': translated_text,
+            'pin_code': predicted_pin,
+            'tracking_link': tracking_link,
+            'carbon_footprint': carbon_footprint,
+            'status': status
+        }
+        save_delivery_to_backend(delivery_data)
+        logger.info("Delivery information saved to backend")
 
         message_body = f"Your delivery to {translated_text} with PIN {predicted_pin} is on its way. Track here: {tracking_link}. Estimated carbon footprint: {carbon_footprint}g CO2."
         twilio_client.messages.create(
