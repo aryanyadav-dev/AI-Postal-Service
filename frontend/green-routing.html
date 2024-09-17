@@ -7,12 +7,12 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <style>
-    body{
+    body {
         margin: 0;
         padding: 0;
         background-color: rgb(171, 248, 171);
     }
-    .box{
+    .box {
         background-color: white;
         border-radius: 20px;
         height: 60vh;
@@ -24,8 +24,9 @@
         padding: 10px;
         box-shadow: 0 0 10px black;
         cursor: pointer;
+        transition: background-color 0.3s;
     }
-    .box:hover{
+    .box:hover {
         background-color: aliceblue;
     }
     .icon {
@@ -39,7 +40,7 @@
         <br>
         <div class="row">
             <div class="col-md-4">
-                <div class="box">
+                <div class="box" id="carbonEmission">
                     <div class="icon-container">
                         <span class="icon">🔥</span> 
                         <h5>Carbon Emission Tracking</h5>
@@ -48,7 +49,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="box">
+                <div class="box" id="ecoFriendlyRoute">
                     <div class="icon-container">
                         <span class="icon">🛣️</span> 
                         <h5>Eco-Friendly Route Selection</h5>
@@ -57,7 +58,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="box">
+                <div class="box" id="trafficPollution">
                     <div class="icon-container">
                         <span class="icon">🌱</span> <!-- Icon for High Contrast Mode -->
                         <h5>Traffic and Pollution Monitoring</h5>
@@ -68,5 +69,36 @@
         </div>
     </div>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        document.getElementById('carbonEmission').addEventListener('click', function() {
+            fetch('/api/carbon_emission')
+                .then(response => response.json())
+                .then(data => {
+                    // Handle the response data
+                    alert('Carbon Emission Data: ' + JSON.stringify(data));
+                })
+                .catch(error => console.error('Error fetching carbon emission data:', error));
+        });
+
+        document.getElementById('ecoFriendlyRoute').addEventListener('click', function() {
+            fetch('/api/eco_friendly_route')
+                .then(response => response.json())
+                .then(data => {
+                    // Handle the response data
+                    alert('Eco-Friendly Route Data: ' + JSON.stringify(data));
+                })
+                .catch(error => console.error('Error fetching eco-friendly route data:', error));
+        });
+
+        document.getElementById('trafficPollution').addEventListener('click', function() {
+            fetch('/api/traffic_pollution')
+                .then(response => response.json())
+                .then(data => {
+                    // Handle the response data
+                    alert('Traffic and Pollution Data: ' + JSON.stringify(data));
+                })
+                .catch(error => console.error('Error fetching traffic and pollution data:', error));
+        });
+    </script>
 </body>
 </html>
