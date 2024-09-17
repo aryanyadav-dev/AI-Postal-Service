@@ -139,17 +139,13 @@ def process_address(image_file):
         address_entities = {ent.label_: ent.text for ent in doc.ents}
         logger.info(f"Extracted address entities: {address_entities}")
 
-        sample_address = pd.DataFrame({
-            'locality': [address_entities.get('GPE', 'Unknown Locality')],
-            'city': [address_entities.get('GPE', 'Unknown City')],
-            'state': [address_entities.get('GPE', 'Unknown State')]
-        })
-
+        customer_name = address_entities.get('PERSON', 'Unknown Customer')
+        phone_number = '+91xxxxxxxxxx'  # Example phone number
+        address = address_entities.get('GPE', 'Unknown Location')
         predicted_pin = '400001'  # For demonstration
-        logger.info(f"Predicted PIN code: {predicted_pin}")
 
         origin = '19.0760,72.8777'  # Example origin in Mumbai
-        destination = address_entities.get('GPE', 'Unknown Location')  # Example destination
+        destination = address
         route_info = get_google_maps_route(origin, destination)
         if 'error' in route_info:
             return {'error': route_info['error']}
@@ -158,8 +154,6 @@ def process_address(image_file):
         carbon_footprint = calculate_carbon_footprint(float(distance.split()[0]))
         logger.info(f"Estimated distance: {distance}, Carbon footprint: {carbon_footprint}g CO2")
 
-        customer_name = address_entities.get('PERSON', 'Unknown Customer')
-        phone_number = '+91xxxxxxxxxx'  # Example phone number
         tracking_link = f"http://tracking_service/{predicted_pin}"  # Example tracking link
         status = 'In Progress'
 
@@ -222,23 +216,25 @@ def process_address(image_file):
         logger.error(f"An error occurred: {e}")
         return {'error': 'An error occurred while processing the request'}
 
-# Routes to handle QR code processing and post office selection
-@app.route('/process_qr_code', methods=['POST'])
-def process_qr_code():
-    qr_code_data = request.json.get('qr_code_data')
-    if not qr_code_data:
-        return jsonify({'error': 'QR code data not provided'}), 400
+@app.route('/process_image', methods=['POST'])
+def process_image():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
 
-    delivery_address = qr_code_data.get('address')
-    delivery_pin = qr_code_data.get('pin_code')
+    image_file = request.files['image']
+    result = process_address(image_file)
 
-    delivery_location = '19.0760,72.8777'  # Example coordinates of the delivery location
+    if 'error' in result:
+        return jsonify(result), 500
 
-    return redirect(url_for('show_post_office_options', origin=delivery_location))
+    return jsonify(result)
 
+# Routes to handle post office selection
 @app.route('/post_office_options')
 def show_post_office_options():
     origin = request.args.get('origin')
+    if not origin:
+        return jsonify({'error': 'Origin not provided'}), 400
 
     return f'''
     <html>
