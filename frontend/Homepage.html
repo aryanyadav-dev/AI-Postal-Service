@@ -5,12 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Team Cheatcode</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <script type="text/javascript">
+      <script type="text/javascript">
         function googleTranslateElementInit() {
-          new google.translate.TranslateElement({pageLanguage: 'en', includedLanguages: 'hi,mr,gu,bn,ta,kn,te', layout: google.translate.TranslateElement.InlineLayout.SIMPLE}, 'google_translate_element');
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'en,hi,ta,gu,kn,te,bn,ml,pa,mr', 
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+            }, 'google_translate_element');
         }
-      </script>
-      <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>      
+        function storeLanguage(lang) {
+            localStorage.setItem('preferredLanguage', lang);
+        }
+        function applyStoredLanguage() {
+            const lang = localStorage.getItem('preferredLanguage');
+            if (lang) {
+                const translateCombo = document.querySelector('.goog-te-combo');
+                if (translateCombo) {
+                    translateCombo.value = lang;
+                    translateCombo.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+        window.onload = function() {
+            applyStoredLanguage(); 
+        };
+    </script>
   </head>
   <style>
     body{
@@ -88,7 +107,6 @@
         font-size: 1.5rem;
     }
     footer{
-        /* height: 10vh; */
         width: 100%;
         background-color: white;
         /* border: 1px solid; */
@@ -111,8 +129,6 @@
         display: flex;
         align-items: center;
         justify-content: space-around;
-        /* border: 1px solid red; */
-        /* text-align: center; */
         height: 2vh;
     }
     footer .rights p{
@@ -120,16 +136,13 @@
         font-weight: bold;
     }
   </style>
-  <body>
+  <body onload="applyStoredLanguage()">
     <div class="nav sticky-top">
         <nav class="navbar navbar-expand-lg bg-body-tertiary sticky-top" style="width: 100%;">
             <div class="container-fluid">
                 <a class="navbar-brand" href="#">
                     <img src="data:image/jpeg;base64,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" alt="sihlogo">
                 </a>
-                <!-- <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-                </button> -->
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
                     <ul class="navbar-nav mx-auto mb-2 mb-lg-0" style="padding-left: 70px;">
                         <li class="nav-item">
@@ -190,35 +203,11 @@
                                 </svg>
                                 <span class="tooltip-text">Ease Accessibility</span>
                             </a>
-                        </li>                   
-                        <!-- <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                              <b>Select Language</b>
-                            </a>
-                            <ul class="dropdown-menu">
-                              <li><a class="dropdown-item" href="#" onclick="setLanguage('hi')">Hindi</a></li>
-                              <li><a class="dropdown-item" href="#" onclick="setLanguage('mr')">Marathi</a></li>
-                              <li><a class="dropdown-item" href="#" onclick="setLanguage('gu')">Gujarati</a></li>
-                              <li><a class="dropdown-item" href="#" onclick="setLanguage('bn')">Bengali</a></li>
-                              <li><a class="dropdown-item" href="#" onclick="setLanguage('ta')">Tamil</a></li>
-                              <li><a class="dropdown-item" href="#" onclick="setLanguage('kn')">Kannada</a></li>
-                              <li><a class="dropdown-item" href="#" onclick="setLanguage('te')">Telugu</a></li>
-                            </ul>
-                        </li> -->
-                        
+                        </li> 
                         <li class="nav-item me-5" style="display: flex; align-items: center; justify-content: center;">
                             <div id="google_translate_element"></div>
                         </li>
-                        
-                          <script>
-                            function setLanguage(lang) {
-                                var translateDropdown = document.querySelector(".goog-te-combo");
-                                if (translateDropdown) {
-                                    translateDropdown.value = lang;
-                                    translateDropdown.dispatchEvent(new Event("change"));
-                                }
-                            }
-                          </script>
+                        <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
                     </ul>
                     <ul class="navbar-nav mb-2 mb-lg-0">
                         <li class="nav-item">
@@ -277,7 +266,7 @@
         <div class="rights">
             <p>Terms and Conditions Applied</p>
             <!-- <p><span>|</span></p> -->
-            <p>©️All Rights Reserved</p>
+            <p>©All Rights Reserved</p>
         </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>

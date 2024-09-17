@@ -34,7 +34,7 @@
             color: #fff;
         }
         .high-contrast .accessibility-section h5 {
-            color: #ffd700; /* Gold color for visibility */
+            color: #ffd700; 
         }
     </style>
 </head>
@@ -45,7 +45,7 @@
             <div class="col-md-4">
                 <div class="accessibility-section">
                     <div class="icon-container">
-                        <span class="icon">&#128101;</span> <!-- Icon for Assistive Features -->
+                        <span class="icon">&#128101;</span>
                         <h5>Assistive Features</h5>
                     </div>
                     <p>Enhance your experience with features designed for users with disabilities.</p>
@@ -54,7 +54,7 @@
             <div class="col-md-4">
                 <div class="accessibility-section">
                     <div class="icon-container">
-                        <span class="icon">&#128279;</span> <!-- Icon for Screen Reader -->
+                        <span class="icon">&#128279;</span> 
                         <h5>Screen Reader Support</h5>
                     </div>
                     <p>Utilize our site with screen readers for improved navigation.</p>
@@ -63,7 +63,7 @@
             <div class="col-md-4">
                 <div class="accessibility-section">
                     <div class="icon-container">
-                        <span class="icon">&#128269;</span> <!-- Icon for High Contrast Mode -->
+                        <span class="icon">&#128269;</span> 
                         <h5>High Contrast Mode</h5>
                         <button class="btn btn-outline-secondary mt-2" id="contrastToggle">Toggle High Contrast</button>
                     </div>
@@ -118,7 +118,7 @@
         document.getElementById('increaseTextSize').addEventListener('click', function () {
             const body = document.body;
             const currentSize = window.getComputedStyle(body, null).getPropertyValue('font-size');
-            const newSize = parseFloat(currentSize) + 2; // Increase by 2px
+            const newSize = parseFloat(currentSize) + 2; 
             body.style.fontSize = newSize + 'px';
         });
 
@@ -126,7 +126,7 @@
         document.getElementById('decreaseTextSize').addEventListener('click', function () {
             const body = document.body;
             const currentSize = window.getComputedStyle(body, null).getPropertyValue('font-size');
-            const newSize = Math.max(10, parseFloat(currentSize) - 2); // Decrease by 2px, minimum size 10px
+            const newSize = Math.max(10, parseFloat(currentSize) - 2); 
             body.style.fontSize = newSize + 'px';
         });
     </script>

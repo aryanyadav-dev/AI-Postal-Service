@@ -75,7 +75,6 @@
         <b>Chat With Us</b>
     </div>
     <div class="chat-messages" id="chatMessages">
-        <!-- Messages will appear here -->
     </div>
     <div class="chat-input">
         <input type="text" id="userInput" placeholder="Type your message..." />
@@ -87,15 +86,11 @@
     const sendButton = document.getElementById('sendButton');
     const userInput = document.getElementById('userInput');
     const chatMessages = document.getElementById('chatMessages');
-
-    // Simple chatbot responses
     const botResponses = {
         'hello': 'Hello! How can I assist you today?',
         'hi': 'Hi there! How can I help you?',
         'bye': 'Goodbye! Have a great day!'
     };
-
-    // Function to add a message to the chat
     function addMessage(content, sender) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', `${sender}-message`);
@@ -103,21 +98,15 @@
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
-
-    // Function to handle user input
     function handleUserMessage() {
         const message = userInput.value.trim().toLowerCase();
         if (message !== '') {
             addMessage(userInput.value, 'user');
             userInput.value = '';
-            
-            // Get bot response
             const botReply = botResponses[message] || "Sorry, I don't understand that.";
             setTimeout(() => addMessage(botReply, 'bot'), 500); 
         }
     }
-
-    // Event listeners
     sendButton.addEventListener('click', handleUserMessage);
     userInput.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
@@ -125,6 +114,5 @@
         }
     });
 </script>
-
 </body>
 </html>
