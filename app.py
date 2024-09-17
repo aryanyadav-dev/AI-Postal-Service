@@ -1,27 +1,35 @@
 import os
+import logging
+import sqlite3
+import requests
 import cv2
 import pytesseract
 import spacy
 import numpy as np
 import pandas as pd
-import logging
-import requests
-import sqlite3
-import geopy.distance  
+import geopy
+from flask import Flask, request, jsonify, redirect, url_for
+from dotenv import load_dotenv
 from googletrans import Translator
 from twilio.rest import Client
 import pywhatkit
 import openai
-from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
 
+# Flask app initialization
+app = Flask(__name__)
+
+# Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load models and APIs
 nlp = spacy.load("en_core_web_sm")
 translator = Translator()
 
+# Twilio setup
 account_sid = os.getenv('TWILIO_ACCOUNT_SID')
 auth_token = os.getenv('TWILIO_AUTH_TOKEN')
 twilio_phone_number = os.getenv('TWILIO_PHONE_NUMBER')
@@ -32,12 +40,24 @@ if not account_sid or not auth_token or not twilio_phone_number:
 
 twilio_client = Client(account_sid, auth_token)
 
+# OpenAI setup
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# Google Maps API key
 google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
 
-BACKEND_URL = 'http://localhost:5000'  
+# Backend URL
+BACKEND_URL = 'http://localhost:5000'
 
+# Post office locations
+post_office_locations = {
+    'BPO': '19.0760,72.8777',  # Example coordinates for BPO in Mumbai
+    'SPO': '19.2183,72.9781',  # Example coordinates for SPO in Mumbai
+    'HPO': '18.9316,72.8333',  # Example coordinates for HPO in Mumbai
+    'GPO': '18.9397,72.8352'   # Example coordinates for GPO in Mumbai
+}
+
+# Database initialization
 def init_db():
     db_path = 'delivery_system.db'
     conn = sqlite3.connect(db_path)
@@ -68,6 +88,7 @@ def init_db():
     conn.close()
     logger.info("Database initialized successfully")
 
+# Helper functions to interact with backend API
 def save_user_to_backend(username, password):
     response = requests.post(f'{BACKEND_URL}/user/register', json={'username': username, 'password': password})
     return response.json()
@@ -97,10 +118,10 @@ def get_google_maps_route(origin, destination):
     else:
         return {'error': 'Unable to fetch route'}
 
+# Function to process address from image
 def process_address(image_file):
     try:
         image = cv2.imdecode(np.frombuffer(image_file.read(), np.uint8), cv2.IMREAD_UNCHANGED)
-
         if image is None:
             logger.error("Could not decode image")
             return {'error': 'Could not decode image'}
@@ -124,11 +145,11 @@ def process_address(image_file):
             'state': [address_entities.get('GPE', 'Unknown State')]
         })
 
-        predicted_pin = '400001'  
+        predicted_pin = '400001'  # For demonstration
         logger.info(f"Predicted PIN code: {predicted_pin}")
 
-        origin = '19.0760,72.8777' 
-        destination = address_entities.get('GPE', 'Unknown Location')  
+        origin = '19.0760,72.8777'  # Example origin in Mumbai
+        destination = address_entities.get('GPE', 'Unknown Location')  # Example destination
         route_info = get_google_maps_route(origin, destination)
         if 'error' in route_info:
             return {'error': route_info['error']}
@@ -138,10 +159,10 @@ def process_address(image_file):
         logger.info(f"Estimated distance: {distance}, Carbon footprint: {carbon_footprint}g CO2")
 
         customer_name = address_entities.get('PERSON', 'Unknown Customer')
-        phone_number = '+91xxxxxxxxxx'  
-        tracking_link = f"http://tracking_service/{predicted_pin}"  
+        phone_number = '+91xxxxxxxxxx'  # Example phone number
+        tracking_link = f"http://tracking_service/{predicted_pin}"  # Example tracking link
         status = 'In Progress'
-        
+
         delivery_data = {
             'customer_name': customer_name,
             'phone_number': phone_number,
@@ -201,33 +222,66 @@ def process_address(image_file):
         logger.error(f"An error occurred: {e}")
         return {'error': 'An error occurred while processing the request'}
 
-def get_nearest_post_office_route(origin, post_office_type):
-    try:
-        post_office_locations = {
-            'BPO': 'location_of_bpo',  
-            'SPO': 'location_of_spo',  
-            'HPO': 'location_of_hpo',  
-            'GPO': 'location_of_gpo'   
-        }
+# Routes to handle QR code processing and post office selection
+@app.route('/process_qr_code', methods=['POST'])
+def process_qr_code():
+    qr_code_data = request.json.get('qr_code_data')
+    if not qr_code_data:
+        return jsonify({'error': 'QR code data not provided'}), 400
 
-        destination = post_office_locations.get(post_office_type)
-        if not destination:
-            return {'error': 'Invalid post office type'}
+    delivery_address = qr_code_data.get('address')
+    delivery_pin = qr_code_data.get('pin_code')
 
-        route_info = get_google_maps_route(origin, destination)
-        if 'error' in route_info:
-            return {'error': route_info['error']}
+    delivery_location = '19.0760,72.8777'  # Example coordinates of the delivery location
 
-        return {
-            'distance': route_info['distance'],
-            'duration': route_info['duration'],
-            'steps': route_info['steps']
-        }
-    except Exception as e:
-        logger.error(f"An error occurred: {e}")
-        return {'error': 'An error occurred while fetching post office route'}
+    return redirect(url_for('show_post_office_options', origin=delivery_location))
 
-def calculate_carbon_footprint(distance):
-    return distance * 0.5  
+@app.route('/post_office_options')
+def show_post_office_options():
+    origin = request.args.get('origin')
 
-init_db()
+    return f'''
+    <html>
+    <head>
+        <title>Select Nearest Post Office</title>
+    </head>
+    <body>
+        <h1>Select Your Nearest Post Office</h1>
+        <form method="POST" action="/route_to_post_office">
+            <input type="hidden" name="origin" value="{origin}">
+            <button type="submit" name="po_type" value="BPO">Nearest BPO</button>
+            <button type="submit" name="po_type" value="SPO">Nearest SPO</button>
+            <button type="submit" name="po_type" value="HPO">Nearest HPO</button>
+            <button type="submit" name="po_type" value="GPO">Nearest GPO</button>
+        </form>
+    </body>
+    </html>
+    '''
+
+@app.route('/route_to_post_office', methods=['POST'])
+def route_to_post_office():
+    origin = request.form.get('origin')
+    po_type = request.form.get('po_type')
+
+    destination = post_office_locations.get(po_type)
+    if not destination:
+        return jsonify({'error': 'Invalid post office type'}), 400
+
+    route_info = get_google_maps_route(origin, destination)
+    if 'error' in route_info:
+        return jsonify({'error': route_info['error']}), 500
+
+    return jsonify({
+        'origin': origin,
+        'destination': destination,
+        'route_info': route_info
+    })
+
+# Carbon footprint calculation
+def calculate_carbon_footprint(distance_km):
+    emission_factor_g_per_km = 150  # Example value
+    return distance_km * emission_factor_g_per_km
+
+if __name__ == '__main__':
+    init_db()
+    app.run(debug=True)
