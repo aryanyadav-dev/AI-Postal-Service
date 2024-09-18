@@ -16,24 +16,18 @@ import openai
 import tensorflow as tf
 import keras_ocr
 
-# Load environment variables
 load_dotenv()
 
-# Flask app initialization
 app = Flask(__name__)
 
-# Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load models and APIs
 nlp = spacy.load("en_core_web_sm")
 translator = Translator()
 
-# Initialize keras-ocr pipeline
 pipeline = keras_ocr.pipeline.Pipeline()
 
-# Twilio setup
 account_sid = os.getenv('TWILIO_ACCOUNT_SID')
 auth_token = os.getenv('TWILIO_AUTH_TOKEN')
 twilio_phone_number = os.getenv('TWILIO_PHONE_NUMBER')
@@ -44,21 +38,17 @@ if not account_sid or not auth_token or not twilio_phone_number:
 
 twilio_client = Client(account_sid, auth_token)
 
-# OpenAI setup
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Google Maps API key
 google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
 
-# Backend URL
 BACKEND_URL = 'http://localhost:5000'
 
-# Post office locations
 post_office_locations = {
-    'BPO': '19.0760,72.8777',  # Example coordinates for BPO in Mumbai
-    'SPO': '19.2183,72.9781',  # Example coordinates for SPO in Mumbai
-    'HPO': '18.9316,72.8333',  # Example coordinates for HPO in Mumbai
-    'GPO': '18.9397,72.8352'   # Example coordinates for GPO in Mumbai
+    'BPO': '19.0760,72.8777',  
+    'SPO': '19.2183,72.9781', 
+    'HPO': '18.9316,72.8333',  
+    'GPO': '18.9397,72.8352'   
 }
 
 # Database initialization
@@ -76,7 +66,8 @@ def init_db():
         pin_code INTEGER,
         tracking_link TEXT,
         carbon_footprint_g REAL,
-        status TEXT
+        status TEXT,
+        transport_mode TEXT
     )
     ''')
 
@@ -92,7 +83,6 @@ def init_db():
     conn.close()
     logger.info("Database initialized successfully")
 
-# Helper functions to interact with backend API
 def save_user_to_backend(username, password):
     response = requests.post(f'{BACKEND_URL}/user/register', json={'username': username, 'password': password})
     return response.json()
@@ -122,7 +112,38 @@ def get_google_maps_route(origin, destination):
     else:
         return {'error': 'Unable to fetch route'}
 
-# Function to process address from image using both pytesseract and TensorFlow/Keras-OCR
+# Function to get green routing based on transport mode
+def get_green_route(mode, origin, destination):
+    if mode == 'plane':
+        # Example logic for plane route
+        url = f"https://api.flightdata.com/routes?origin={origin}&destination={destination}&key={google_maps_api_key}"
+    elif mode == 'ship':
+        # Example logic for ship route
+        url = f"https://api.shipdata.com/routes?origin={origin}&destination={destination}&key={google_maps_api_key}"
+    elif mode == 'train':
+        # Example logic for train route
+        url = f"https://api.traindata.com/routes?origin={origin}&destination={destination}&key={google_maps_api_key}"
+    elif mode == 'mail_van':
+        # Example logic for mail van route
+        url = f"https://api.trafficdata.com/routes?origin={origin}&destination={destination}&key={google_maps_api_key}"
+    else:
+        return {'error': 'Invalid transport mode'}
+
+    response = requests.get(url)
+    data = response.json()
+    if data['status'] == 'OK':
+        route = data['routes'][0]['legs'][0]
+        distance = route['distance']['text']
+        duration = route['duration']['text']
+        steps = [step['html_instructions'] for step in route['steps']]
+        return {
+            'distance': distance,
+            'duration': duration,
+            'steps': steps
+        }
+    else:
+        return {'error': 'Unable to fetch route'}
+
 def process_address(image_file, use_tensorflow=False):
     try:
         # Read image file into numpy array
@@ -133,14 +154,12 @@ def process_address(image_file, use_tensorflow=False):
 
         extracted_text = ""
         if use_tensorflow:
-            # Use Keras-OCR for text extraction (TensorFlow integration)
             logger.info("Using TensorFlow and Keras-OCR for text extraction")
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             images = [image]
             prediction_groups = pipeline.recognize(images)
             extracted_text = ' '.join([text for text, box in prediction_groups[0]])
         else:
-            # Use Pytesseract for text extraction
             logger.info("Using pytesseract for text extraction")
             extracted_text = pytesseract.image_to_string(image)
 
@@ -156,13 +175,13 @@ def process_address(image_file, use_tensorflow=False):
         logger.info(f"Extracted address entities: {address_entities}")
 
         customer_name = address_entities.get('PERSON', 'Unknown Customer')
-        phone_number = '+91xxxxxxxxxx'  # Example phone number
+        phone_number = '+91xxxxxxxxxx'  
         address = address_entities.get('GPE', 'Unknown Location')
-        predicted_pin = '400001'  # For demonstration
+        predicted_pin = '400001'  
 
-        origin = '19.0760,72.8777'  # Example origin in Mumbai
-        destination = address
-        route_info = get_google_maps_route(origin, destination)
+        transport_mode = 'mail_van'  # Default transport mode, could be set based on input or logic
+        origin = post_office_locations.get(transport_mode, '19.0760,72.8777')  # Default to BPO if mode not found
+        route_info = get_green_route(transport_mode, origin, address)
         if 'error' in route_info:
             return {'error': route_info['error']}
 
@@ -171,7 +190,7 @@ def process_address(image_file, use_tensorflow=False):
         carbon_footprint = calculate_carbon_footprint(distance_value)
         logger.info(f"Estimated distance: {distance_str}, Carbon footprint: {carbon_footprint}g CO2")
 
-        tracking_link = f"http://tracking_service/{predicted_pin}"  # Example tracking link
+        tracking_link = f"http://tracking_service/{predicted_pin}"  
         status = 'In Progress'
 
         delivery_data = {
@@ -181,7 +200,8 @@ def process_address(image_file, use_tensorflow=False):
             'pin_code': predicted_pin,
             'tracking_link': tracking_link,
             'carbon_footprint': carbon_footprint,
-            'status': status
+            'status': status,
+            'transport_mode': transport_mode
         }
         save_delivery_to_backend(delivery_data)
         logger.info("Delivery information saved to backend")
@@ -199,7 +219,6 @@ def process_address(image_file, use_tensorflow=False):
         kit.sendwhatmsg_instantly(phone_number, f"Tracking details: {message_body}", wait_time=20)
         logger.info("WhatsApp message sent")
 
-        # Use OpenAI to generate feedback request
         feedback_prompt = f"Customer delivery to {translated_text} was successful. Please provide feedback."
         openai_response = openai.Completion.create(
             model="text-davinci-003",
@@ -249,7 +268,7 @@ def process_image():
     return jsonify(result)
 
 def calculate_carbon_footprint(distance_km):
-    # Example calculation: 150g CO2 per km (typical for delivery vans)
+    # Example calculation: 150g CO2 per km 
     return distance_km * 150
 
 if __name__ == '__main__':
