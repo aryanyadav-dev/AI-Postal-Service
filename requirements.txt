@@ -1,12 +1,13 @@
+Flask
 opencv-python
-pytesseract
 spacy
 numpy
 pandas
-scikit-learn
 geopy
 googletrans==4.0.0-rc1
 twilio
-pywhatkit
 openai
 requests
+python-dotenv
+tensorflow
+keras-ocr

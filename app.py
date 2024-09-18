@@ -6,14 +6,15 @@ import cv2
 import pytesseract
 import spacy
 import numpy as np
-import pandas as pd
 import geopy
-from flask import Flask, request, jsonify, redirect, url_for
+from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from googletrans import Translator
 from twilio.rest import Client
-import pywhatkit
+import pywhatkit as kit
 import openai
+import tensorflow as tf
+import keras_ocr
 
 # Load environment variables
 load_dotenv()
@@ -28,6 +29,9 @@ logger = logging.getLogger(__name__)
 # Load models and APIs
 nlp = spacy.load("en_core_web_sm")
 translator = Translator()
+
+# Initialize keras-ocr pipeline
+pipeline = keras_ocr.pipeline.Pipeline()
 
 # Twilio setup
 account_sid = os.getenv('TWILIO_ACCOUNT_SID')
@@ -118,23 +122,35 @@ def get_google_maps_route(origin, destination):
     else:
         return {'error': 'Unable to fetch route'}
 
-# Function to process address from image
-def process_address(image_file):
+# Function to process address from image using both pytesseract and TensorFlow/Keras-OCR
+def process_address(image_file, use_tensorflow=False):
     try:
-        image = cv2.imdecode(np.frombuffer(image_file.read(), np.uint8), cv2.IMREAD_UNCHANGED)
+        # Read image file into numpy array
+        image = cv2.imdecode(np.frombuffer(image_file.read(), np.uint8), cv2.IMREAD_COLOR)
         if image is None:
             logger.error("Could not decode image")
             return {'error': 'Could not decode image'}
 
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
+        extracted_text = ""
+        if use_tensorflow:
+            # Use Keras-OCR for text extraction (TensorFlow integration)
+            logger.info("Using TensorFlow and Keras-OCR for text extraction")
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            images = [image]
+            prediction_groups = pipeline.recognize(images)
+            extracted_text = ' '.join([text for text, box in prediction_groups[0]])
+        else:
+            # Use Pytesseract for text extraction
+            logger.info("Using pytesseract for text extraction")
+            extracted_text = pytesseract.image_to_string(image)
 
-        text = pytesseract.image_to_string(thresh, lang='eng')
-        logger.info(f"Extracted text: {text}")
+        logger.info(f"Extracted text: {extracted_text}")
 
-        translated_text = translator.translate(text).text
+        # Translate text if necessary
+        translated_text = translator.translate(extracted_text).text
         logger.info(f"Translated text: {translated_text}")
 
+        # Use NLP to extract entities
         doc = nlp(translated_text)
         address_entities = {ent.label_: ent.text for ent in doc.ents}
         logger.info(f"Extracted address entities: {address_entities}")
@@ -150,9 +166,10 @@ def process_address(image_file):
         if 'error' in route_info:
             return {'error': route_info['error']}
 
-        distance = route_info['distance']
-        carbon_footprint = calculate_carbon_footprint(float(distance.split()[0]))
-        logger.info(f"Estimated distance: {distance}, Carbon footprint: {carbon_footprint}g CO2")
+        distance_str = route_info['distance']
+        distance_value = float(distance_str.split()[0])
+        carbon_footprint = calculate_carbon_footprint(distance_value)
+        logger.info(f"Estimated distance: {distance_str}, Carbon footprint: {carbon_footprint}g CO2")
 
         tracking_link = f"http://tracking_service/{predicted_pin}"  # Example tracking link
         status = 'In Progress'
@@ -169,6 +186,7 @@ def process_address(image_file):
         save_delivery_to_backend(delivery_data)
         logger.info("Delivery information saved to backend")
 
+        # Send tracking link and carbon footprint via Twilio SMS
         message_body = f"Your delivery to {translated_text} with PIN {predicted_pin} is on its way. Track here: {tracking_link}. Estimated carbon footprint: {carbon_footprint}g CO2."
         twilio_client.messages.create(
             body=message_body,
@@ -177,9 +195,11 @@ def process_address(image_file):
         )
         logger.info("Tracking link sent via Twilio")
 
-        pywhatkit.sendwhatmsg_instantly(phone_number, f"Tracking details: {message_body}", wait_time=20)
+        # Send WhatsApp message using pywhatkit
+        kit.sendwhatmsg_instantly(phone_number, f"Tracking details: {message_body}", wait_time=20)
         logger.info("WhatsApp message sent")
 
+        # Use OpenAI to generate feedback request
         feedback_prompt = f"Customer delivery to {translated_text} was successful. Please provide feedback."
         openai_response = openai.Completion.create(
             model="text-davinci-003",
@@ -189,6 +209,7 @@ def process_address(image_file):
         feedback_request = openai_response.choices[0].text.strip()
         logger.info(f"Generated feedback request: {feedback_request}")
 
+        # Send feedback request via Twilio SMS
         feedback_message_body = f"Dear {customer_name}, we would appreciate your feedback on your recent delivery: {feedback_request}"
         twilio_client.messages.create(
             body=feedback_message_body,
@@ -197,14 +218,15 @@ def process_address(image_file):
         )
         logger.info("Feedback request sent via Twilio")
 
-        pywhatkit.sendwhatmsg_instantly(phone_number, feedback_message_body, wait_time=20)
+        # Send feedback request via WhatsApp
+        kit.sendwhatmsg_instantly(phone_number, feedback_message_body, wait_time=20)
         logger.info("Feedback request sent via WhatsApp")
 
         return {
             'extracted_text': translated_text,
             'address_entities': address_entities,
             'predicted_pin_code': predicted_pin,
-            'distance': distance,
+            'distance': distance_str,
             'carbon_footprint_g': carbon_footprint,
             'tracking_link': tracking_link,
             'notification_status': 'sent',
@@ -222,61 +244,13 @@ def process_image():
         return jsonify({'error': 'No image file provided'}), 400
 
     image_file = request.files['image']
-    result = process_address(image_file)
-
-    if 'error' in result:
-        return jsonify(result), 500
-
+    use_tensorflow = request.form.get('use_tensorflow', 'false').lower() == 'true'
+    result = process_address(image_file, use_tensorflow)
     return jsonify(result)
 
-# Routes to handle post office selection
-@app.route('/post_office_options')
-def show_post_office_options():
-    origin = request.args.get('origin')
-    if not origin:
-        return jsonify({'error': 'Origin not provided'}), 400
-
-    return f'''
-    <html>
-    <head>
-        <title>Select Nearest Post Office</title>
-    </head>
-    <body>
-        <h1>Select Your Nearest Post Office</h1>
-        <form method="POST" action="/route_to_post_office">
-            <input type="hidden" name="origin" value="{origin}">
-            <button type="submit" name="po_type" value="BPO">Nearest BPO</button>
-            <button type="submit" name="po_type" value="SPO">Nearest SPO</button>
-            <button type="submit" name="po_type" value="HPO">Nearest HPO</button>
-            <button type="submit" name="po_type" value="GPO">Nearest GPO</button>
-        </form>
-    </body>
-    </html>
-    '''
-
-@app.route('/route_to_post_office', methods=['POST'])
-def route_to_post_office():
-    origin = request.form.get('origin')
-    po_type = request.form.get('po_type')
-
-    destination = post_office_locations.get(po_type)
-    if not destination:
-        return jsonify({'error': 'Invalid post office type'}), 400
-
-    route_info = get_google_maps_route(origin, destination)
-    if 'error' in route_info:
-        return jsonify({'error': route_info['error']}), 500
-
-    return jsonify({
-        'origin': origin,
-        'destination': destination,
-        'route_info': route_info
-    })
-
-# Carbon footprint calculation
 def calculate_carbon_footprint(distance_km):
-    emission_factor_g_per_km = 150  # Example value
-    return distance_km * emission_factor_g_per_km
+    # Example calculation: 150g CO2 per km (typical for delivery vans)
+    return distance_km * 150
 
 if __name__ == '__main__':
     init_db()
