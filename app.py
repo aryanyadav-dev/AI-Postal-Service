@@ -22,12 +22,10 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load TensorFlow models
 text_detection_model = tf.saved_model.load('path/to/text_detection_model')
 custom_ner_model = tf.saved_model.load('path/to/custom_ner_model')
 text_classification_model = tf.saved_model.load('path/to/text_classification_model')
 
-# Load SpaCy model
 spacy_model = spacy.load('en_core_web_sm')
 
 translator = Translator()
@@ -169,7 +167,6 @@ def process_address(image_file, use_tensorflow=False):
             logger.info("Using SpaCy and pytesseract for text extraction")
             image_np = image.numpy()
             extracted_text = pytesseract.image_to_string(image_np)
-            # Additional SpaCy processing (if needed)
             doc = spacy_model(extracted_text)
             entities = {ent.label_: ent.text for ent in doc.ents}
             extracted_text = ' '.join(entities.values())
@@ -179,7 +176,6 @@ def process_address(image_file, use_tensorflow=False):
         translated_text = translator.translate(extracted_text).text
         logger.info(f"Translated text: {translated_text}")
 
-        # Use custom NER model
         doc = custom_ner_model(translated_text)
         address_entities = {ent['label']: ent['text'] for ent in doc}
         logger.info(f"Extracted address entities: {address_entities}")
